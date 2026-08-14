@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import ClientDashboard from './pages/ClientDashboard';
 import LojistaDashboard from './pages/LojistaDashboard';
@@ -25,7 +25,7 @@ export default function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
-        {/* Rota Fallback (Redireciona para o login se a URL não existir) */}
+        {/* Redirecionamento padrão */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

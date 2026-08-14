@@ -14,7 +14,6 @@ export default function Login() {
   const [forgotMsg, setForgotMsg] = useState('');
   const navigate = useNavigate();
 
-  // Login com E-mail e Senha
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -28,7 +27,7 @@ export default function Login() {
 
       if (error) throw error;
 
-      // Busca o perfil para redirecionar corretamente
+      // Busca o perfil para redirecionamento conforme a função
       const { data: profile } = await supabase
         .from('profiles')
         .select('tipo, ativo')
@@ -37,7 +36,7 @@ export default function Login() {
 
       if (profile?.ativo === false) {
         await supabase.auth.signOut();
-        throw new Error('Sua conta está temporariamente bloqueada. Entre em contato com o suporte.');
+        throw new Error('Sua conta está temporariamente desativada.');
       }
 
       if (profile?.tipo === 'admin') {
@@ -54,22 +53,6 @@ export default function Login() {
     }
   };
 
-  // Login Social (Google)
-  const handleOAuthLogin = async (provider) => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/client-dashboard`,
-        },
-      });
-      if (error) throw error;
-    } catch (err) {
-      setErrorMsg(`Erro ao autenticar com ${provider}: ${err.message}`);
-    }
-  };
-
-  // Recuperação de Senha
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setForgotMsg('');
@@ -78,7 +61,7 @@ export default function Login() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      setForgotMsg('E-mail de redefinição enviado com sucesso! Verifique sua caixa de entrada.');
+      setForgotMsg('E-mail de redefinição enviado com sucesso!');
     } catch (err) {
       setForgotMsg('Erro ao enviar e-mail: ' + err.message);
     }
@@ -90,10 +73,10 @@ export default function Login() {
       {/* Container Central */}
       <div className="w-full max-w-[440px] flex flex-col items-center my-auto">
         
-        {/* Logo Nuno */}
+        {/* Logo */}
         <Link to="/" className="mb-6 flex items-center justify-center hover:opacity-90 transition">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo Nuno" className="w-10 h-10 object-contain" />
+            <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
             <span className="text-3xl font-extrabold text-[#1e1b4b] tracking-tight lowercase">nuno</span>
           </div>
         </Link>
@@ -109,10 +92,10 @@ export default function Login() {
           )}
 
           <form className="w-full flex flex-col" onSubmit={handleLogin}>
-            {/* Campo: E-mail */}
+            {/* Campo E-mail */}
             <div className="mb-4">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="email">
-                E-mail ou usuário
+                E-mail
               </label>
               <input 
                 type="email" 
@@ -125,7 +108,7 @@ export default function Login() {
               />
             </div>
 
-            {/* Campo: Senha */}
+            {/* Campo Senha */}
             <div className="mb-2">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="password">
                 Senha
@@ -146,12 +129,10 @@ export default function Login() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
                 >
                   {showPassword ? (
-                    // Ícone Olho Fechado
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                     </svg>
                   ) : (
-                    // Ícone Olho Aberto
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -180,42 +161,8 @@ export default function Login() {
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
-
-            {/* Divisor Social Login */}
-            <span className="text-xs font-medium text-slate-500 self-start mt-6 mb-3">
-              Ou acesse via
-            </span>
-
-            {/* Botões Sociais */}
-            <div className="flex flex-col gap-2.5 w-full">
-              <button 
-                type="button" 
-                onClick={() => handleOAuthLogin('google')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 transition"
-              >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4 h-4" alt="Google" />
-                Google
-              </button>
-
-              <button 
-                type="button" 
-                onClick={() => handleOAuthLogin('facebook')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 transition"
-              >
-                <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                Facebook
-              </button>
-            </div>
           </form>
         </div>
-
-        {/* Link Inscreva-se */}
-        <Link to="/register" className="mt-6 text-center text-xs text-indigo-600 hover:text-indigo-700 font-medium leading-relaxed">
-          Ainda não tem cadastro?<br />
-          <span className="underline font-semibold">Inscreva-se agora</span>
-        </Link>
       </div>
 
       {/* Rodapé */}
@@ -245,7 +192,7 @@ export default function Login() {
             </div>
             
             <p className="text-xs text-slate-600">
-              Digite seu e-mail cadastrado para receber o link de redefinição de senha.
+              Digite seu e-mail para receber o link de redefinição de senha.
             </p>
 
             {forgotMsg && (

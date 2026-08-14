@@ -177,7 +177,7 @@ export default function Login() {
           <a href="#" className="hover:underline">Segurança e privacidade</a>
         </div>
         <div>
-          <a href="#" className="font-medium text-slate-700 hover:underline">nunoselo.com</a>
+          <a href="#" className="font-medium text-slate-700 hover:underline">www.selodacidade.com.br</a>
           {" "}— 2026 – © Todos os direitos reservados
         </div>
       </footer>

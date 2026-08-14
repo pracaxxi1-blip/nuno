@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import { uploadImageToStorage } from '../utils/uploadImage';
 
 export default function CreateRequest() {
   const [tipo, setTipo] = useState('unico');
-  const [prazoOpcao, setPrazoOpcao] = useState('padrao'); // 'urgente' (1h), 'padrao' (6h), 'sem_pressa' (24h)
+  const [prazoOpcao, setPrazoOpcao] = useState('padrao');
   const [categories, setCategories] = useState([]);
   const [cities, setCities] = useState([]);
   const [categoryId, setCategoryId] = useState('');
   const [cityId, setCityId] = useState('');
   const [bairro, setBairro] = useState('');
   const [eligibleStoresCount, setEligibleStoresCount] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
 
   const [items, setItems] = useState([
@@ -39,7 +41,6 @@ export default function CreateRequest() {
     loadData();
   }, []);
 
-  // Calcula quantidade de lojas elegíveis sempre que muda Categoria ou Cidade
   useEffect(() => {
     async function countEligibleStores() {
       if (!categoryId || !cityId) {
@@ -48,11 +49,9 @@ export default function CreateRequest() {
       }
 
       try {
-        // Busca o nome da cidade selecionada
         const cityObj = cities.find(c => String(c.id) === String(cityId) || c.nome === cityId);
         const cityName = cityObj ? cityObj.nome : cityId;
 
-        // Lojas da categoria
         const { data: lojistaCats } = await supabase
           .from('lojista_categorias')
           .select('lojista_id')
@@ -61,7 +60,6 @@ export default function CreateRequest() {
         const lojistaIds = (lojistaCats || []).map(lc => lc.lojista_id);
 
         if (lojistaIds.length > 0) {
-          // Filtra lojas ativas e na mesma cidade
           const { count } = await supabase
             .from('profiles')
             .select('*', { count: 'exact', head: true })
@@ -82,15 +80,20 @@ export default function CreateRequest() {
     countEligibleStores();
   }, [categoryId, cityId, cities]);
 
-  const handleImageUpload = (index, file) => {
+  // Upload seguro no Storage do Supabase
+  const handleImageUpload = async (index, file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      setUploading(true);
+      const url = await uploadImageToStorage(file, 'cliente');
       const updated = [...items];
-      updated[index].imagem_url = reader.result;
+      updated[index].imagem_url = url;
       setItems(updated);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      alert('Erro ao enviar imagem: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const addItemRow = () => {
@@ -110,6 +113,11 @@ export default function CreateRequest() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (uploading) {
+      alert('Aguarde o upload das imagens terminar.');
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -133,7 +141,6 @@ export default function CreateRequest() {
     const codigoPedido = `${numCliente}-${(count || 0) + 1}`;
     const descricaoResumo = tipo === 'unico' ? items[0].descricao : `Lista com ${items.length} itens`;
 
-    // Cálculo do tempo de expiração
     let horasAdd = 6;
     if (prazoOpcao === 'urgente') horasAdd = 1;
     if (prazoOpcao === 'sem_pressa') horasAdd = 24;
@@ -372,8 +379,12 @@ export default function CreateRequest() {
           )}
         </div>
 
-        <button type="submit" className="w-full bg-teal-600 text-white p-3 rounded-xl font-semibold hover:bg-teal-700 transition shadow-sm">
-          Enviar Cotação
+        <button 
+          type="submit" 
+          disabled={uploading}
+          className={`w-full p-3 rounded-xl font-semibold text-white transition shadow-sm ${uploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'}`}
+        >
+          {uploading ? 'Enviando imagens...' : 'Enviar Cotação'}
         </button>
       </form>
     </div>

@@ -70,14 +70,18 @@ export default function Login() {
     <div className="bg-[#f8f9fa] text-slate-700 min-h-screen flex flex-col justify-between items-center py-8 px-4 font-sans">
       
       {/* Container Central */}
-      <div className="w-full max-w-[420px] flex flex-col items-center my-auto">
+      <div className="w-full max-w-[440px] flex flex-col items-center my-auto">
 
         {/* Card de Login */}
         <div className="w-full bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-slate-200/80 p-8 sm:p-10 flex flex-col items-center">
           
-          {/* Logo 2x Maior */}
-          <Link to="/" className="mb-6 flex items-center justify-center hover:opacity-90 transition">
-            <img src={logo} alt="Logo" className="h-40 sm:h-48 w-auto object-contain max-w-full" />
+          {/* Logo 315x195px */}
+          <Link to="/" className="mb-4 flex items-center justify-center hover:opacity-90 transition">
+            <img 
+              src={logo} 
+              alt="Logo" 
+              className="w-[315px] h-[195px] object-contain"
+            />
           </Link>
 
           {/* Título */}

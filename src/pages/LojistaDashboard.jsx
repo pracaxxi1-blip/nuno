@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { uploadImageToStorage } from '../utils/uploadImage';
 
 export default function LojistaDashboard() {
   const [orders, setOrders] = useState([]);
@@ -14,6 +15,7 @@ export default function LojistaDashboard() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profile, setProfile] = useState(null);
   const [userEmail, setUserEmail] = useState('');
+  const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
 
   const [now, setNow] = useState(Date.now());
   const [newOrderAlert, setNewOrderAlert] = useState(false);
@@ -23,7 +25,6 @@ export default function LojistaDashboard() {
     window.location.href = '/';
   };
 
-  // Gerador de Som para Alerta de Novo Pedido (Web Audio API)
   const playBeep = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -32,7 +33,7 @@ export default function LojistaDashboard() {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // Nota A5
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.6);
       osc.start();
@@ -42,19 +43,17 @@ export default function LojistaDashboard() {
     }
   };
 
-  // Atualiza relógio a cada segundo para o cronômetro
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Escuta novas cotações via Supabase Realtime
   useEffect(() => {
     fetchLojistaData();
 
     const channel = supabase
       .channel('realtime-orders')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => {
         playBeep();
         setNewOrderAlert(true);
         fetchLojistaData();
@@ -103,7 +102,6 @@ export default function LojistaDashboard() {
         }
       }
 
-      // Vendas Confirmadas
       const { data: bidsAceitos } = await supabase.from('bids').select('*').eq('lojista_id', user.id).eq('status', 'Aceito');
 
       if (bidsAceitos && bidsAceitos.length > 0) {
@@ -157,18 +155,28 @@ export default function LojistaDashboard() {
     setBidItemsData(updated);
   };
 
-  const handleLojistaImage = (index, file) => {
+  // Upload seguro da foto do lojista no Storage
+  const handleLojistaImage = async (index, file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleBidItemChange(index, 'imagem_url', reader.result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setUploadingImageIndex(index);
+      const url = await uploadImageToStorage(file, 'lojista');
+      handleBidItemChange(index, 'imagem_url', url);
+    } catch (err) {
+      alert('Erro no envio da foto: ' + err.message);
+    } finally {
+      setUploadingImageIndex(null);
+    }
   };
 
   const handleSendBid = async (e) => {
     e.preventDefault();
     if (!selectedOrder) return;
+
+    if (uploadingImageIndex !== null) {
+      alert('Aguarde o upload da foto ser concluído.');
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -223,7 +231,6 @@ export default function LojistaDashboard() {
     }
   };
 
-  // Helper de Formatação do Cronômetro
   const getRemainingTime = (expiraEm) => {
     if (!expiraEm) return { texto: 'Sem prazo', expirado: false };
     const diff = new Date(expiraEm).getTime() - now;
@@ -243,14 +250,12 @@ export default function LojistaDashboard() {
     <div className="min-h-screen bg-slate-100 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* Alerta Visual de Novo Pedido */}
         {newOrderAlert && (
           <div className="bg-amber-500 text-white p-4 rounded-2xl shadow-lg font-bold text-center animate-bounce flex items-center justify-center gap-2">
             <span>🔔</span> Nova cotação recebida agora mesmo! Verifique a lista.
           </div>
         )}
 
-        {/* Cabeçalho */}
         <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Painel do Lojista</h2>
@@ -262,7 +267,6 @@ export default function LojistaDashboard() {
           </div>
         </div>
 
-        {/* Vendas Confirmadas */}
         {acceptedBids.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-6 space-y-3">
             <h3 className="text-xl font-bold text-green-800">🎉 Vendas Confirmadas</h3>
@@ -282,7 +286,6 @@ export default function LojistaDashboard() {
           </div>
         )}
 
-        {/* Cotações Disponíveis */}
         <div className="bg-white shadow-xl rounded-2xl border border-slate-200 p-6">
           <h3 className="text-xl font-bold text-slate-800 mb-4">Cotações Disponíveis</h3>
           <ul className="divide-y divide-slate-100">
@@ -331,7 +334,6 @@ export default function LojistaDashboard() {
           </ul>
         </div>
 
-        {/* Modal Envio Proposta */}
         {selectedOrder && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <form onSubmit={handleSendBid} className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
@@ -385,6 +387,7 @@ export default function LojistaDashboard() {
                               onChange={(e) => handleLojistaImage(idx, e.target.files[0])}
                               className="text-xs text-slate-500 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-slate-200"
                             />
+                            {uploadingImageIndex === idx && <span className="text-xs text-teal-600">Enviando...</span>}
                             {bidItemsData[idx]?.imagem_url && (
                               <img 
                                 src={bidItemsData[idx].imagem_url} 
@@ -420,7 +423,6 @@ export default function LojistaDashboard() {
           </div>
         )}
 
-        {/* Modal Ampliação de Imagem */}
         {activeImage && (
           <div 
             className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
@@ -446,7 +448,6 @@ export default function LojistaDashboard() {
           </div>
         )}
 
-        {/* Modal de Dados do Lojista */}
         {isProfileModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-5">

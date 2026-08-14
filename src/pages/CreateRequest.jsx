@@ -7,6 +7,7 @@ export default function CreateRequest() {
   const [tipo, setTipo] = useState('unico');
   const [prazoOpcao, setPrazoOpcao] = useState('padrao');
   const [categories, setCategories] = useState([]);
+  const [allCategoriesRaw, setAllCategoriesRaw] = useState([]);
   const [cities, setCities] = useState([]);
   const [categoryId, setCategoryId] = useState('');
   const [cityId, setCityId] = useState('');
@@ -25,6 +26,7 @@ export default function CreateRequest() {
       const { data: cityData } = await supabase.from('cities').select('*');
 
       if (catData) {
+        setAllCategoriesRaw(catData);
         const uniqueCats = catData.filter((item, index, self) =>
           index === self.findIndex((t) => t.nome?.trim().toLowerCase() === item.nome?.trim().toLowerCase())
         );
@@ -41,6 +43,7 @@ export default function CreateRequest() {
     loadData();
   }, []);
 
+  // Contagem de lojas elegíveis
   useEffect(() => {
     async function countEligibleStores() {
       if (!categoryId || !cityId) {
@@ -49,38 +52,67 @@ export default function CreateRequest() {
       }
 
       try {
-        const cityObj = cities.find(c => String(c.id) === String(cityId) || c.nome === cityId);
-        const cityName = cityObj ? cityObj.nome : cityId;
+        // 1. Identifica o nome da categoria selecionada e todos os IDs com o mesmo nome
+        const selectedCat = categories.find(c => String(c.id) === String(categoryId));
+        const catName = selectedCat ? selectedCat.nome?.trim().toLowerCase() : '';
 
-        const { data: lojistaCats } = await supabase
+        const matchingCatIds = allCategoriesRaw
+          .filter(c => c.nome?.trim().toLowerCase() === catName)
+          .map(c => c.id);
+
+        if (matchingCatIds.length === 0) matchingCatIds.push(categoryId);
+
+        // 2. Identifica o nome da cidade selecionada
+        const cityObj = cities.find(c => String(c.id) === String(cityId) || c.nome === cityId);
+        const cityName = (cityObj ? cityObj.nome : cityId).trim();
+
+        // 3. Busca lojistas vinculados a qualquer ID dessa categoria
+        const { data: lojistaCats, error: lcErr } = await supabase
           .from('lojista_categorias')
           .select('lojista_id')
-          .eq('categoria_id', categoryId);
+          .in('categoria_id', matchingCatIds);
 
-        const lojistaIds = (lojistaCats || []).map(lc => lc.lojista_id);
+        if (lcErr) {
+          console.error('Erro ao buscar lojista_categorias:', lcErr);
+          setEligibleStoresCount(0);
+          return;
+        }
+
+        const lojistaIds = Array.from(new Set((lojistaCats || []).map(lc => lc.lojista_id).filter(Boolean)));
 
         if (lojistaIds.length > 0) {
-          const { count } = await supabase
+          // 4. Busca perfis de lojistas ativos nessa cidade
+          const { data: profiles, error: profErr } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .in('id', lojistaIds)
-            .eq('tipo', 'lojista')
-            .ilike('cidade', `%${cityName}%`)
-            .eq('ativo', true);
+            .select('id, cidade, ativo, tipo')
+            .in('id', lojistaIds);
 
-          setEligibleStoresCount(count || 0);
+          if (profErr) {
+            console.error('Erro ao buscar perfis:', profErr);
+            setEligibleStoresCount(0);
+            return;
+          }
+
+          const eligible = (profiles || []).filter(p => {
+            const isLojista = p.tipo === 'lojista' || !p.tipo;
+            const isAtivo = p.ativo !== false;
+            const sameCity = p.cidade && p.cidade.trim().toLowerCase().includes(cityName.toLowerCase());
+            return isLojista && isAtivo && sameCity;
+          });
+
+          setEligibleStoresCount(eligible.length);
         } else {
           setEligibleStoresCount(0);
         }
       } catch (err) {
-        console.error('Erro ao contar lojas elegíveis:', err);
+        console.error('Erro ao calcular lojas:', err);
+        setEligibleStoresCount(0);
       }
     }
 
     countEligibleStores();
-  }, [categoryId, cityId, cities]);
+  }, [categoryId, cityId, categories, cities, allCategoriesRaw]);
 
-  // Upload seguro no Storage do Supabase
   const handleImageUpload = async (index, file) => {
     if (!file) return;
     try {
@@ -184,7 +216,7 @@ export default function CreateRequest() {
     }
 
     alert(`Pedido #${codigoPedido} criado com sucesso!`);
-    navigate('/my-requests');
+    navigate('/client-dashboard');
   };
 
   return (
@@ -245,7 +277,11 @@ export default function CreateRequest() {
 
         {/* Contador de Lojas Elegíveis */}
         {eligibleStoresCount !== null && (
-          <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-800 font-semibold flex items-center gap-2">
+          <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+            eligibleStoresCount > 0 
+              ? 'bg-teal-50 border-teal-200 text-teal-800' 
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}>
             <span>🏪</span>
             <span>
               {eligibleStoresCount > 0 

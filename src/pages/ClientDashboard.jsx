@@ -11,7 +11,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Filtros e Busca
-  const [statusFilter, setStatusFilter] = useState('todas'); // 'todas', 'em_aberto', 'confirmadas', 'encerradas'
+  const [statusFilter, setStatusFilter] = useState('todas');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modais e Detalhes
@@ -189,18 +189,15 @@ export default function ClientDashboard() {
     return { texto: `Recebendo propostas por mais ${minutos}m ${segundos}s`, expirado: false };
   };
 
-  // Filtragem dos Pedidos
   const filteredOrders = orders.filter(order => {
     const orderBids = bidsByOrder[String(order.id)] || [];
     const tempo = getRemainingTime(order.expira_em);
     const hasAcceptedBid = orderBids.some(b => b.status === 'Aceito');
 
-    // Filtro de Status
     if (statusFilter === 'confirmadas' && !hasAcceptedBid) return false;
     if (statusFilter === 'em_aberto' && (hasAcceptedBid || tempo.expirado)) return false;
     if (statusFilter === 'encerradas' && !tempo.expirado && !hasAcceptedBid) return false;
 
-    // Filtro de Busca
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchCodigo = order.codigo_pedido?.toLowerCase().includes(term);
@@ -221,18 +218,25 @@ export default function ClientDashboard() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           
-          {/* Logo Nuno */}
-          <Link to="/" className="flex items-center gap-2.5">
-            <img src={logo} alt="Nuno" className="w-8 h-8 flex-shrink-0 object-contain" />
-            <span className="text-2xl font-black text-[#1e1b4b] tracking-tight lowercase">nuno</span>
+          {/* Logo Apenas Imagem (Sem texto) */}
+          <Link to="/" className="flex items-center hover:opacity-90 transition">
+            <img src={logo} alt="Logo" className="h-10 w-auto object-contain" />
           </Link>
 
           {/* Menu / Perfil */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               {userEmail || 'cliente@nunoselo.com'}
             </div>
+
+            {/* Botão Meus Dados no Cabeçalho */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+            >
+              Meus Dados
+            </button>
 
             <button
               onClick={handleLogout}
@@ -247,26 +251,19 @@ export default function ClientDashboard() {
       {/* Conteúdo Principal */}
       <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6 flex-1">
 
-        {/* Card de Boas-vindas e Ações Rápidas */}
+        {/* Card de Boas-vindas com Botão de Nova Cotação Maior */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Painel do Cliente</h1>
             <p className="text-sm text-slate-500 mt-0.5">Gerencie suas cotações e orçamentos recebidos</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-            <button
-              onClick={() => setIsProfileModalOpen(true)}
-              className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm"
-            >
-              Meus Dados
-            </button>
-            <Link
-              to="/create-request"
-              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
-            >
-              + Nova Cotação
-            </Link>
-          </div>
+          
+          <Link
+            to="/create-request"
+            className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-6 py-3.5 rounded-2xl text-sm sm:text-base font-extrabold transition shadow-md hover:shadow-indigo-200 flex items-center justify-center gap-2"
+          >
+            <span className="text-lg leading-none">+</span> Nova Cotação
+          </Link>
         </div>
 
         {/* Filtros e Busca */}

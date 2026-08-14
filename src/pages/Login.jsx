@@ -70,16 +70,18 @@ export default function Login() {
     <div className="bg-[#f8f9fa] text-slate-700 min-h-screen flex flex-col justify-between items-center py-8 px-4 font-sans">
       
       {/* Container Central */}
-      <div className="w-full max-w-[440px] flex flex-col items-center my-auto">
-        
-        {/* Logo Ampliada */}
-        <Link to="/" className="mb-6 flex items-center justify-center hover:opacity-90 transition">
-          <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
-        </Link>
+      <div className="w-full max-w-[420px] flex flex-col items-center my-auto">
 
         {/* Card de Login */}
-        <div className="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-slate-200/80 p-8 sm:p-10 flex flex-col items-center">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">Acesse sua conta</h2>
+        <div className="w-full bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-slate-200/80 p-8 sm:p-10 flex flex-col items-center">
+          
+          {/* Logo dentro da Caixa */}
+          <Link to="/" className="mb-5 flex items-center justify-center hover:opacity-90 transition">
+            <img src={logo} alt="Logo" className="h-20 sm:h-24 w-auto object-contain" />
+          </Link>
+
+          {/* Título Menor */}
+          <h2 className="text-lg font-bold text-slate-800 mb-6 text-center">Acesse sua conta</h2>
 
           {errorMsg && (
             <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl text-center">

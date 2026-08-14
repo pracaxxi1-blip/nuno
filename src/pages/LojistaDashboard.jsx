@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { Link } from 'react-router-dom';
 import { uploadImageToStorage } from '../utils/uploadImage';
+import logo from '../assets/logo.svg';
 
 export default function LojistaDashboard() {
   const [orders, setOrders] = useState([]);
@@ -10,7 +12,13 @@ export default function LojistaDashboard() {
   const [bidItemsData, setBidItemsData] = useState([]);
   const [frete, setFrete] = useState('');
   const [observacao, setObservacao] = useState('');
+  const [loading, setLoading] = useState(true);
 
+  // Filtros e Busca
+  const [statusFilter, setStatusFilter] = useState('todas'); // 'todas', 'urgentes', 'confirmadas'
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Modais e Imagens
   const [activeImage, setActiveImage] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -67,6 +75,7 @@ export default function LojistaDashboard() {
   }, []);
 
   async function fetchLojistaData() {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -134,6 +143,7 @@ export default function LojistaDashboard() {
     } catch (err) {
       console.error('Erro:', err);
     }
+    setLoading(false);
   }
 
   const openBidModal = async (order) => {
@@ -155,7 +165,6 @@ export default function LojistaDashboard() {
     setBidItemsData(updated);
   };
 
-  // Upload seguro da foto do lojista no Storage
   const handleLojistaImage = async (index, file) => {
     if (!file) return;
     try {
@@ -246,241 +255,432 @@ export default function LojistaDashboard() {
     return { texto: `${minutos}m ${segundos}s restantes`, expirado: false };
   };
 
-  return (
-    <div className="min-h-screen bg-slate-100 p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+  // Filtragem
+  const filteredOrders = orders.filter(order => {
+    if (statusFilter === 'urgentes' && order.prazo_opcao !== 'urgente') return false;
 
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchCodigo = order.codigo_pedido?.toLowerCase().includes(term);
+      const matchDesc = order.descricao?.toLowerCase().includes(term);
+      const matchBairro = order.bairro?.toLowerCase().includes(term);
+      const matchCidade = order.cidade_nome_exibicao?.toLowerCase().includes(term);
+      if (!matchCodigo && !matchDesc && !matchBairro && !matchCidade) return false;
+    }
+
+    return true;
+  });
+
+  return (
+    <div className="bg-[#f8f9fa] text-slate-700 min-h-screen flex flex-col justify-between font-sans">
+      
+      {/* Cabeçalho Principal */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          
+          {/* Logo */}
+          <Link to="/" className="flex items-center hover:opacity-90 transition">
+            <img src={logo} alt="Logo" className="h-10 w-auto object-contain" />
+          </Link>
+
+          {/* Menu / Perfil */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              {profile?.nome || userEmail || 'Lojista'}
+            </div>
+
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm"
+            >
+              Meus Dados
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteúdo Principal */}
+      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6 flex-1">
+
+        {/* Alerta Visual de Novo Pedido em Tempo Real */}
         {newOrderAlert && (
-          <div className="bg-amber-500 text-white p-4 rounded-2xl shadow-lg font-bold text-center animate-bounce flex items-center justify-center gap-2">
-            <span>🔔</span> Nova cotação recebida agora mesmo! Verifique a lista.
+          <div className="bg-amber-500 text-white p-4 rounded-2xl shadow-lg font-bold text-center animate-bounce flex items-center justify-center gap-2 text-sm">
+            <span>🔔</span> Nova cotação recebida agora! A lista foi atualizada automaticamente.
           </div>
         )}
 
-        <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        {/* Card de Boas-Vindas */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Painel do Lojista</h2>
-            <p className="text-sm text-slate-500">Cotações das Suas Categorias</p>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Painel do Lojista</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Acompanhe e envie orçamentos para cotações da sua região</p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => setIsProfileModalOpen(true)} className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-semibold">Meus Dados</button>
-            <button onClick={handleLogout} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold">Sair</button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl">
+              {orders.length} cotações ativas
+            </span>
+            <span className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl">
+              {acceptedBids.length} vendas fechadas
+            </span>
           </div>
         </div>
 
+        {/* Seção de Vendas Confirmadas */}
         {acceptedBids.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 space-y-3">
-            <h3 className="text-xl font-bold text-green-800">🎉 Vendas Confirmadas</h3>
-            {acceptedBids.map((bid) => (
-              <div key={bid.id} className="bg-white p-4 rounded-xl border border-green-200 flex justify-between items-center">
-                <div>
-                  <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">Pedido #{bid.pedido?.codigo_pedido || bid.pedido?.id}</span>
-                  <p className="font-bold text-slate-800 mt-1">{bid.pedido?.descricao}</p>
-                  <p className="text-sm text-slate-600">Cliente: {bid.pedido?.cliente?.nome || 'Cliente'}</p>
-                  <p className="text-sm text-teal-700 font-bold">WhatsApp: {bid.pedido?.cliente?.telefone}</p>
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎉</span>
+              <h2 className="text-lg font-bold text-emerald-900">Vendas Confirmadas ({acceptedBids.length})</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {acceptedBids.map((bid) => (
+                <div key={bid.id} className="bg-white p-4 rounded-xl border border-emerald-200/80 shadow-xs flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                        Pedido #{bid.pedido?.codigo_pedido || bid.pedido?.id}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        Confirmado
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-slate-800 mt-2 text-sm">{bid.pedido?.descricao}</h3>
+                    <p className="text-xs text-slate-600 mt-1"><b>Cliente:</b> {bid.pedido?.cliente?.nome || 'Cliente'}</p>
+                    <p className="text-xs text-slate-600"><b>WhatsApp:</b> {bid.pedido?.cliente?.telefone || 'Não informado'}</p>
+                  </div>
+
+                  {bid.pedido?.cliente?.telefone && (
+                    <a
+                      href={`https://wa.me/55${bid.pedido?.cliente?.telefone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white py-2 px-3 rounded-xl text-xs font-bold transition text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                      <span>💬</span> Chamar no WhatsApp
+                    </a>
+                  )}
                 </div>
-                {bid.pedido?.cliente?.telefone && (
-                  <a href={`https://wa.me/55${bid.pedido?.cliente?.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold">Chamar no WhatsApp</a>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        <div className="bg-white shadow-xl rounded-2xl border border-slate-200 p-6">
-          <h3 className="text-xl font-bold text-slate-800 mb-4">Cotações Disponíveis</h3>
-          <ul className="divide-y divide-slate-100">
-            {orders.map((order) => {
+        {/* Filtros e Busca */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 overflow-x-auto">
+            <button
+              onClick={() => setStatusFilter('todas')}
+              className={`px-3 py-1.5 rounded-lg transition ${statusFilter === 'todas' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50'}`}
+            >
+              Todas ({orders.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter('urgentes')}
+              className={`px-3 py-1.5 rounded-lg transition ${statusFilter === 'urgentes' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50'}`}
+            >
+              🔴 Urgentes (1h)
+            </button>
+          </div>
+
+          <div className="relative min-w-[240px]">
+            <input
+              type="text"
+              placeholder="Buscar por pedido, item ou bairro..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+          </div>
+        </div>
+
+        {/* Lista de Cotações Disponíveis */}
+        <div className="space-y-4">
+          {loading ? (
+            <div className="bg-white rounded-2xl p-8 text-center text-slate-500 text-sm border border-slate-200">
+              Carregando cotações disponíveis...
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center text-slate-500 text-sm border border-slate-200">
+              Nenhuma cotação disponível no momento para suas categorias e filtros.
+            </div>
+          ) : (
+            filteredOrders.map((order) => {
               const tempo = getRemainingTime(order.expira_em);
 
               return (
-                <li key={order.id} className="py-4 flex justify-between items-center gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded">
-                        Pedido #{order.codigo_pedido || order.id}
-                      </span>
-                      {order.prazo_opcao === 'urgente' && (
-                        <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded animate-pulse">
-                          🔴 URGENTE (1h)
+                <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg">
+                          Pedido #{order.codigo_pedido || order.id}
                         </span>
+
+                        {order.prazo_opcao === 'urgente' && (
+                          <span className="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md animate-pulse">
+                            🔴 URGENTE (1h)
+                          </span>
+                        )}
+
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                          tempo.expirado ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          ⏱️ {tempo.texto}
+                        </span>
+                      </div>
+
+                      <h2 className="text-lg font-bold text-slate-800 mt-2">{order.descricao}</h2>
+                      <p className="text-xs text-slate-500">
+                        <b>Categoria:</b> {order.categoria_nome_exibicao} | <b>Cidade:</b> {order.cidade_nome_exibicao} {order.bairro && `(${order.bairro})`}
+                      </p>
+                    </div>
+
+                    <div>
+                      {tempo.expirado ? (
+                        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-4 py-2.5 rounded-xl cursor-not-allowed inline-block">
+                          Prazo Encerrado
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => openBidModal(order)}
+                          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                          Preencher Orçamento
+                        </button>
                       )}
                     </div>
-                    
-                    <p className="font-semibold text-slate-800 text-lg mt-1">{order.descricao}</p>
-                    <p className="text-sm text-slate-600">Cidade: {order.cidade_nome_exibicao} | Bairro: {order.bairro}</p>
-                    
-                    <div className="pt-1">
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${tempo.expirado ? 'bg-slate-200 text-slate-500' : 'bg-amber-100 text-amber-800'}`}>
-                        ⏱️ {tempo.texto}
-                      </span>
-                    </div>
                   </div>
-
-                  {tempo.expirado ? (
-                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-4 py-2 rounded-lg cursor-not-allowed">
-                      Prazo Encerrado
-                    </span>
-                  ) : (
-                    <button 
-                      onClick={() => openBidModal(order)} 
-                      className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-teal-700 transition"
-                    >
-                      Preencher Orçamento
-                    </button>
-                  )}
-                </li>
+                </div>
               );
-            })}
-          </ul>
+            })
+          )}
         </div>
 
-        {selectedOrder && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <form onSubmit={handleSendBid} className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
-              <h3 className="text-xl font-bold text-slate-800">Preencher Proposta para Pedido #{selectedOrder.codigo_pedido || selectedOrder.id}</h3>
+      </main>
 
-              <div className="space-y-4">
-                {orderItems.map((oItem, idx) => (
-                  <div key={oItem.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-slate-800">{oItem.descricao} (Qtd: {oItem.quantidade})</p>
-                        {oItem.imagem_url && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs text-slate-500 font-semibold">Foto do Cliente:</span>
-                            <img 
-                              src={oItem.imagem_url} 
-                              alt="Cliente" 
-                              onClick={() => setActiveImage(oItem.imagem_url)}
-                              className="w-12 h-12 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition" 
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={bidItemsData[idx]?.atendido}
-                          onChange={(e) => handleBidItemChange(idx, 'atendido', e.target.checked)}
-                          className="w-4 h-4 text-teal-600 rounded"
-                        />
-                        Tenho em estoque
-                      </label>
-                    </div>
+      {/* Rodapé Institucional */}
+      <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        <div className="flex flex-wrap justify-center items-center gap-2 mb-1.5 text-slate-600 font-medium">
+          <a href="#" className="hover:underline">Central de Ajuda</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Termos de Uso</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Privacidade</a>
+        </div>
+        <div>nunoselo.com — 2026 © Todos os direitos reservados</div>
+      </footer>
 
-                    {bidItemsData[idx]?.atendido && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600">Preço Unitário (R$)</label>
-                          <input
-                            type="number" step="0.01" required
-                            value={bidItemsData[idx]?.preco_unitario}
-                            onChange={(e) => handleBidItemChange(idx, 'preco_unitario', e.target.value)}
-                            className="w-full p-2 rounded-lg border border-slate-300 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600">Sua Foto do Produto (Opcional)</label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <input
-                              type="file" accept="image/*"
-                              onChange={(e) => handleLojistaImage(idx, e.target.files[0])}
-                              className="text-xs text-slate-500 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-slate-200"
-                            />
-                            {uploadingImageIndex === idx && <span className="text-xs text-teal-600">Enviando...</span>}
-                            {bidItemsData[idx]?.imagem_url && (
-                              <img 
-                                src={bidItemsData[idx].imagem_url} 
-                                alt="Sua foto" 
-                                onClick={() => setActiveImage(bidItemsData[idx].imagem_url)}
-                                className="w-9 h-9 object-cover rounded-lg border border-teal-500 cursor-pointer hover:opacity-80 transition" 
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+      {/* Modal de Preenchimento de Proposta */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleSendBid} className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  Preencher Orçamento — Pedido #{selectedOrder.codigo_pedido || selectedOrder.id}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">{selectedOrder.descricao}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700">Frete Total (R$)</label>
-                  <input type="number" step="0.01" value={frete} onChange={(e) => setFrete(e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700">Observações</label>
-                  <input type="text" placeholder="Validade, marcas..." value={observacao} onChange={(e) => setObservacao(e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300" />
-                </div>
-              </div>
-
-              <div className="flex space-x-3 pt-3">
-                <button type="button" onClick={() => setSelectedOrder(null)} className="w-1/2 bg-slate-200 text-slate-700 p-2.5 rounded-xl font-semibold">Cancelar</button>
-                <button type="submit" className="w-1/2 bg-teal-600 text-white p-2.5 rounded-xl font-semibold">Confirmar Envio</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {activeImage && (
-          <div 
-            className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setActiveImage(null)}
-          >
-            <div 
-              className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col items-center justify-center"
-              onClick={(e) => e.stopPropagation()}
-            >
               <button
                 type="button"
-                onClick={() => setActiveImage(null)}
-                className="absolute top-3 right-3 bg-slate-800 text-white w-9 h-9 rounded-full flex items-center justify-center font-bold hover:bg-slate-900 transition shadow-md z-10"
+                onClick={() => setSelectedOrder(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
               >
                 ✕
               </button>
-              <img 
-                src={activeImage} 
-                alt="Visualização ampliada" 
-                className="max-w-full max-h-[80vh] object-contain rounded-xl"
-              />
+            </div>
+
+            {/* Itens do Pedido */}
+            <div className="space-y-3">
+              {orderItems.map((oItem, idx) => (
+                <div key={oItem.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{oItem.descricao} (Qtd: {oItem.quantidade})</p>
+                      {oItem.imagem_url && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-[11px] text-slate-500 font-semibold">Foto do Cliente:</span>
+                          <img
+                            src={oItem.imagem_url}
+                            alt="Cliente"
+                            onClick={() => setActiveImage(oItem.imagem_url)}
+                            className="w-10 h-10 object-cover rounded-lg border border-indigo-100 cursor-pointer hover:opacity-80 transition"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bidItemsData[idx]?.atendido}
+                        onChange={(e) => handleBidItemChange(idx, 'atendido', e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                      />
+                      Tenho em estoque
+                    </label>
+                  </div>
+
+                  {bidItemsData[idx]?.atendido && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Preço Unitário (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={bidItemsData[idx]?.preco_unitario}
+                          onChange={(e) => handleBidItemChange(idx, 'preco_unitario', e.target.value)}
+                          placeholder="0,00"
+                          className="w-full p-2 bg-white rounded-xl border border-slate-300 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Sua Foto do Produto (Opcional)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleLojistaImage(idx, e.target.files[0])}
+                            className="text-xs text-slate-500 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300"
+                          />
+                          {uploadingImageIndex === idx && <span className="text-xs text-indigo-600">Enviando...</span>}
+                          {bidItemsData[idx]?.imagem_url && (
+                            <img
+                              src={bidItemsData[idx].imagem_url}
+                              alt="Sua foto"
+                              onClick={() => setActiveImage(bidItemsData[idx].imagem_url)}
+                              className="w-8 h-8 object-cover rounded-lg border border-indigo-200 cursor-pointer hover:opacity-80 transition"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Frete e Observações */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor do Frete (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={frete}
+                  onChange={(e) => setFrete(e.target.value)}
+                  placeholder="0,00 (deixe 0 se for grátis)"
+                  className="w-full p-2.5 bg-white rounded-xl border border-slate-300 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Observações</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Marcas, garantia, prazo de entrega..."
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  className="w-full p-2.5 bg-white rounded-xl border border-slate-300 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
+                />
+              </div>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="flex gap-2.5 pt-3">
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                className="w-1/2 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-300 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition shadow-sm shadow-indigo-200"
+              >
+                Confirmar e Enviar Orçamento
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal de Ampliação de Foto */}
+      {activeImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setActiveImage(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveImage(null)}
+              className="absolute top-3 right-3 bg-slate-800 text-white w-9 h-9 rounded-full flex items-center justify-center font-bold hover:bg-slate-900 transition shadow-md z-10"
+            >
+              ✕
+            </button>
+            <img
+              src={activeImage}
+              alt="Visualização ampliada"
+              className="max-w-full max-h-[80vh] object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Dados do Lojista */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-5">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <h3 className="text-xl font-bold text-slate-800">Meus Dados</h3>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 font-bold text-lg">✕</button>
+            </div>
+
+            <div className="space-y-4 text-sm text-slate-700">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nome da Loja</p>
+                <p className="font-bold text-slate-800 text-base">{profile?.nome || 'Não informado'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">E-mail de Acesso</p>
+                <p className="font-medium text-slate-800">{userEmail || 'Não informado'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cidade</p>
+                <p className="font-medium text-slate-800">{profile?.cidade || 'Não informada'}</p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(false)}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white p-2.5 rounded-xl font-semibold transition"
+              >
+                Fechar
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {isProfileModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-5">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-800">Meus Dados</h3>
-                <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 font-bold text-lg">✕</button>
-              </div>
-
-              <div className="space-y-4 text-sm text-slate-700">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nome da Loja</p>
-                  <p className="font-bold text-slate-800 text-base">{profile?.nome || 'Não informado'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">E-mail</p>
-                  <p className="font-medium text-slate-800">{userEmail || 'Não informado'}</p>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileModalOpen(false)}
-                  className="w-full bg-slate-800 text-white p-2.5 rounded-xl font-semibold hover:bg-slate-900 transition"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
     </div>
   );
 }

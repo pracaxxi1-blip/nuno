@@ -75,12 +75,12 @@ export default function Login() {
         {/* Card de Login */}
         <div className="w-full bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-slate-200/80 p-8 sm:p-10 flex flex-col items-center">
           
-          {/* Logo dentro da Caixa */}
-          <Link to="/" className="mb-5 flex items-center justify-center hover:opacity-90 transition">
-            <img src={logo} alt="Logo" className="h-20 sm:h-24 w-auto object-contain" />
+          {/* Logo 2x Maior */}
+          <Link to="/" className="mb-6 flex items-center justify-center hover:opacity-90 transition">
+            <img src={logo} alt="Logo" className="h-40 sm:h-48 w-auto object-contain max-w-full" />
           </Link>
 
-          {/* Título Menor */}
+          {/* Título */}
           <h2 className="text-lg font-bold text-slate-800 mb-6 text-center">Acesse sua conta</h2>
 
           {errorMsg && (

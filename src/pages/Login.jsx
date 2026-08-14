@@ -27,7 +27,6 @@ export default function Login() {
 
       if (error) throw error;
 
-      // Busca o perfil para redirecionamento conforme a função
       const { data: profile } = await supabase
         .from('profiles')
         .select('tipo, ativo')
@@ -73,12 +72,9 @@ export default function Login() {
       {/* Container Central */}
       <div className="w-full max-w-[440px] flex flex-col items-center my-auto">
         
-        {/* Logo */}
+        {/* Logo Ampliada */}
         <Link to="/" className="mb-6 flex items-center justify-center hover:opacity-90 transition">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
-            <span className="text-3xl font-extrabold text-[#1e1b4b] tracking-tight lowercase">nuno</span>
-          </div>
+          <img src={logo} alt="Logo" className="h-16 w-auto object-contain" />
         </Link>
 
         {/* Card de Login */}
